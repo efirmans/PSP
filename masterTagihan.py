@@ -4,6 +4,7 @@ from openpyxl import Workbook
 import re
 from datetime import datetime
 import altair as alt
+import numpy as np
 
 st.set_page_config(
     page_title='Master Tagihan',
@@ -132,7 +133,7 @@ if uploaded_file is not None:
             pilihTagihan = st.radio(label='Kategori',options=tagihan,horizontal=True,)
             urutan = filtered_df[filtered_df['Kategori'] == pilihTagihan].sort_values(by='Urutan')
             
-            if pilihTagihan == 'SPP' or pilihTagihan == 'Jemputan':
+            if pilihTagihan == 'Spp' or pilihTagihan == 'Jemputan':
 
                 df = urutan.groupby(['Tagihan', 'Urutan']).agg(
                     Terbayarkan=('Terbayarkan', 'sum'),
@@ -146,11 +147,12 @@ if uploaded_file is not None:
                     Kekurangan=('Kekurangan', 'sum')
                 ).reset_index()  # Reset index agar 'Urutan' jadi kolom biasa
                 
+            st.dataframe(df)
             df_melted = df.melt(id_vars="Tagihan", value_vars=["Terbayarkan", "Kekurangan"],
                                 var_name="Category", value_name="Value")
             # Create the line chart
             chart = alt.Chart(df_melted).mark_bar(opacity=0.7).encode(
-                x=alt.X("Tagihan:O", title="Periode",sort=list(df["Tagihan"]),axis=alt.Axis(labelAngle=45)),
+                x=alt.X("Tagihan:O", title="Periode",sort=list(df["Tagihan"]),axis=alt.Axis(labelAngle=0)),
                 y=alt.Y("Value:Q", title="Nominal" ),
                 color="Category:N" ,
                 tooltip=[
@@ -159,7 +161,7 @@ if uploaded_file is not None:
                     alt.Tooltip("Value:Q", title="Nominal", format=",.0f")] , # Add thousand separator
             ).properties(
                 title="Pembayaran", 
-                width=700,  # Lebar chart
+                width=800,  # Lebar chart
                 height=500)  # Tinggi chart).interactive()
 
             st.altair_chart(chart)
