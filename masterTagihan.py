@@ -6,6 +6,7 @@ from datetime import datetime
 import altair as alt
 import numpy as np
 
+
 st.set_page_config(
     page_title='Master Tagihan',
     layout="centered")
