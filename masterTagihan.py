@@ -148,7 +148,7 @@ if uploaded_file is not None:
                     Kekurangan=('Kekurangan', 'sum')
                 ).reset_index()  # Reset index agar 'Urutan' jadi kolom biasa
                 
-            st.dataframe(df)
+           
             df_melted = df.melt(id_vars="Tagihan", value_vars=["Terbayarkan", "Kekurangan"],
                                 var_name="Category", value_name="Value")
             # Create the line chart
