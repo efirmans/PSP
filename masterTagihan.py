@@ -15,16 +15,17 @@ st.set_page_config(
 
 st.markdown(
         """
-        ### :blue[Upload file xls Master Tagihan dari Aplikasi PSP] 
+        ### :blue[Master Tagihan Sekolah] 
           
     """
     ,)
 
-uploaded_file = st.file_uploader("Upload an Excel file", type=["xls"])
+uploaded_file = st.file_uploader("Upload file xls Master Tagihan dari Aplikasi PSP", type=["xls"])
 if uploaded_file is not None:
     # Baca file excel
     try:
-        df = pd.read_excel(uploaded_file)
+        df = pd.read_excel(uploaded_file,thousands=",")
+        pd.options.display.float_format = '{:,.0f}'.format
         df['NIS'] = df['NIS'].astype(str)
         pattern = r"(\d{2}-\d{2}-\d{4})"
         df['Tanggal Pembayaran'] = df['Tanggal Pembayaran'].str.extract(pattern)
@@ -175,6 +176,7 @@ if uploaded_file is not None:
             st.subheader(':green[KATEGORI TAGIHAN]',divider=True)
             #Agregat Tagihan
             df["Kategori"] = df["Kategori"].map(reverse_kategori)
+            
             hasilFilter = df[df['unit'].isin(pilihUnit)][['Kategori','Terbayarkan','Kekurangan']]
             agg_data_namaTagihan = hasilFilter.groupby('Kategori').agg(
                     Terbayarkan=('Terbayarkan', 'sum'),
@@ -188,10 +190,12 @@ if uploaded_file is not None:
                 if kategoriTagihan == 'SPP' or  kategoriTagihan == 'JEMPUTAN':
                     df = df.sort_values(by='Urutan')
                     filterKategori = df[(df['unit'].isin(pilihUnit)) & (df['Kategori'] == kategoriTagihan)][['Tagihan', 'Terbayarkan', 'Kekurangan', 'Urutan']]
+
                     agg_kategoriTagihan = filterKategori.groupby(['Tagihan', 'Urutan'],as_index=False).agg(
                         Terbayarkan=('Terbayarkan', 'sum'),
                         Kekurangan=('Kekurangan', 'sum')
                     )
+                    
                     # Urutkan berdasarkan 'Urutan'
                     agg_kategoriTagihan = agg_kategoriTagihan.sort_values(by='Urutan')
 
@@ -296,8 +300,9 @@ jumlah tunggakan: {tunggakan:,d}
                 df.reset_index(drop=True,inplace=True)
                 df.index +=1
                 df.index.name = 'No'
-                
-                st.dataframe(df[['Tagihan','Total','Terbayarkan','Kekurangan']])   
+                df['Tanggal Pembayaran']= df['Tanggal Pembayaran'].dt.strftime('%d-%m-%Y')
+            
+                st.dataframe(df[['Tagihan','Total','Terbayarkan','Kekurangan','Tanggal Pembayaran']])   
                 
     
     except Exception as e:
