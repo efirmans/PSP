@@ -15,16 +15,16 @@ st.set_page_config(
 
 st.markdown(
         """
-        ### :blue[Upload file xls Master Tagihan dari Aplikasi PSP] 
+        ### :blue[Master Tagihan Sekolah] 
           
     """
     ,)
-
-uploaded_file = st.file_uploader("Upload an Excel file", type=["xls"])
+uploaded_file = st.file_uploader("Upload file xls Master Tagihan dari Aplikasi PSP", type=["xls"],)
 if uploaded_file is not None:
     # Baca file excel
     try:
-        df = pd.read_excel(uploaded_file)
+        pd.options.display.float_format = '{:,.2f}'.format
+        df = pd.read_excel(uploaded_file,thousands=",")
         df['NIS'] = df['NIS'].astype(str)
         pattern = r"(\d{2}-\d{2}-\d{4})"
         df['Tanggal Pembayaran'] = df['Tanggal Pembayaran'].str.extract(pattern)
@@ -32,6 +32,8 @@ if uploaded_file is not None:
         df['Tanggal Pembayaran'] = pd.to_datetime(df['Tanggal Pembayaran'],format='%d-%m-%Y',errors='coerce')
         df['Tanggal Tagihan'] = pd.to_datetime(df['Tanggal Tagihan'],errors='coerce')
         df['Tanggal Jatuh Tempo'] = pd.to_datetime(df['Tanggal Jatuh Tempo'],errors='coerce')
+        df["Terbayarkan"] = pd.to_numeric(df["Terbayarkan"], errors="coerce")
+        df["Kekurangan"] = pd.to_numeric(df["Kekurangan"], errors="coerce")
         
         # bikin urut bulan
         pola_bulan = r"(JANUARI|FEBRUARI|MARET|APRIL|MEI|JUNI|JULI|AGUSTUS|SEPTEMBER|OKTOBER|NOVEMBER|DESEMBER)" 
@@ -108,17 +110,15 @@ if uploaded_file is not None:
                 last_payment = filtered_df['Tanggal Pembayaran'].max().strftime('%d-%m-%Y') 
             
             st.subheader(':grey[RINGKASAN TAGIHAN]',divider=True)
-            st.text(
-                f'''
-
-    Jumlah Tagihan: {tagihan}  
-    Terbayar: {terbayar:,d}
-    Belum terbayar: {kekurangan:,d}
+            st.markdown(
+                f"""
+    :red[Jumlah Tagihan:] {tagihan}  
+    Terbayar: {terbayar }
+    Belum terbayar: {kekurangan}
     Tgl awal Tagihan : {awal}
     Tgl akhir Jatuh tempo : {akhir}
     Transaksi pembayaran terakhir: {last_payment} 
-
-    '''
+    """
                     )
 
 
@@ -148,7 +148,7 @@ if uploaded_file is not None:
                     Kekurangan=('Kekurangan', 'sum')
                 ).reset_index()  # Reset index agar 'Urutan' jadi kolom biasa
                 
-           
+             
             df_melted = df.melt(id_vars="Tagihan", value_vars=["Terbayarkan", "Kekurangan"],
                                 var_name="Category", value_name="Value")
             # Create the line chart
@@ -173,13 +173,15 @@ if uploaded_file is not None:
         elif jabarkan == 'Detail Kategori Tagihan':
             # df["Kategori"] = df["Kategori"].map(reverse_kategori)
             st.subheader(':green[KATEGORI TAGIHAN]',divider=True)
+            
             #Agregat Tagihan
             df["Kategori"] = df["Kategori"].map(reverse_kategori)
             hasilFilter = df[df['unit'].isin(pilihUnit)][['Kategori','Terbayarkan','Kekurangan']]
             agg_data_namaTagihan = hasilFilter.groupby('Kategori').agg(
                     Terbayarkan=('Terbayarkan', 'sum'),
                     Kekurangan=('Kekurangan', 'sum')
-        )
+        )   
+            agg_data_namaTagihan = agg_data_namaTagihan.apply(lambda x: f"{x:,.0f}")
             st.dataframe(agg_data_namaTagihan)
             kategoriTagihan = st.sidebar.selectbox(label='Kategori tagihan',options=df['Kategori'].unique())
             
@@ -251,7 +253,7 @@ if uploaded_file is not None:
                             
 Nama: {nama}
 Kelas:{kelas}
-jumlah tunggakan: {tunggakan:,d}      
+jumlah tunggakan: {tunggakan}      
 
 '''
 
