@@ -15,25 +15,18 @@ st.set_page_config(
 
 st.markdown(
         """
-        ### :blue[Master Tagihan Sekolah] 
-        ### :blue[Master Tagihan Sekolah] 
-          
+        ### :blue[Master Tagihan Sekolah]         
     """
     ,)
-uploaded_file = st.file_uploader("Upload file xls Master Tagihan dari Aplikasi PSP", type=["xls"],)
-
 uploaded_file = st.file_uploader("Upload file xls Master Tagihan dari Aplikasi PSP", type=["xls"])
 if uploaded_file is not None:
     # Baca file excel
     try:
-        pd.options.display.float_format = '{:,.2f}'.format
-        df = pd.read_excel(uploaded_file,thousands=",")
         df = pd.read_excel(uploaded_file,thousands=",")
         pd.options.display.float_format = '{:,.0f}'.format
         df['NIS'] = df['NIS'].astype(str)
         pattern = r"(\d{2}-\d{2}-\d{4})"
-        df['Tanggal Pembayaran'] = df['Tanggal Pembayaran'].str.extract(pattern)
-        
+        df['Tanggal Pembayaran'] = df['Tanggal Pembayaran'].str.extract(pattern)        
         df['Tanggal Pembayaran'] = pd.to_datetime(df['Tanggal Pembayaran'],format='%d-%m-%Y',errors='coerce')
         df['Tanggal Tagihan'] = pd.to_datetime(df['Tanggal Tagihan'],errors='coerce')
         df['Tanggal Jatuh Tempo'] = pd.to_datetime(df['Tanggal Jatuh Tempo'],errors='coerce')
@@ -62,7 +55,7 @@ if uploaded_file is not None:
     "PEMBELIAN MINIMART": '07',
     "BIAYA PENDIDIKAN":'08'
 }
-        
+        #pola kategori
         pola_kategori = r"(SPP|BIAYA KEGIATAN SATU TAHUN|INFAQ|BIAYA PANGKAL|JEMPUTAN|PEMBELIAN MINIMART|TUNGGAKAN ALUMNI |BIAYA PENDIDIKAN)"
         df['Kategori'] = df['Tagihan'].str.extract(pola_kategori)
         df['Kategori'] = df['Kategori'].map(kategori) 
@@ -72,38 +65,34 @@ if uploaded_file is not None:
         pola_unit = r"(?i)(SDIT|TKAE|TKAS|PKBM)"
         df['unit'] = df['Tags'].str.extract(pola_unit)
         df['unit'] = df['unit'].str.upper()
+        
         # Tahun Ajaran
         def convert_date_range(date_value):
             month = date_value.month
-            year = date_value.year
-            
+            year = date_value.year    
             if 1 <= month <= 6:
                 return f"{year-1}-{year}"
             elif 7 <= month <= 12:
-                return f"{year}-{year+1}"
-            
-            return None  # Handle unexpected cases
+                return f"{year}-{year+1}"            
+            return None  
 
         df['tahun'] = df["Tanggal Tagihan"].apply(convert_date_range)
         df['kelas'] = df['Tags'].str.extract(r'(\d[a-zA-Z])')
         df['kelas'] = df['kelas'].str.upper()        
+        
         # multi select
         unitPendidikan = df['unit'].drop_duplicates()
         pilihUnit = st.sidebar.multiselect ("Unit",unitPendidikan,key='selected_options',placeholder='Pilih unit',default=unitPendidikan)
         
-       
-
-        
-        
         #penjabaran
         nilaiJabarkan = ['Summary','Detail Kategori Tagihan','Tunggakan','Rekap Pembayaran Siswa']
         jabarkan = st.sidebar.radio(label='Menu',options=nilaiJabarkan,key='jabar')
+        
         # jabarkan =  st.sidebar.checkbox("Jabarkan kategori tagihan")
         if jabarkan == 'Summary':
             tagihan = df[df['unit'].isin(pilihUnit)]['Tagihan'].count()
             terbayar = df[df['unit'].isin(pilihUnit)]['Terbayarkan'].sum()
-            kekurangan = df[df['unit'].isin(pilihUnit)]['Kekurangan'].sum()
-            
+            kekurangan = df[df['unit'].isin(pilihUnit)]['Kekurangan'].sum()    
             filtered_df = df[df['unit'].isin(pilihUnit)]
             if filtered_df.empty or filtered_df['Tanggal Jatuh Tempo'].isna().all():
                 awal = "Data tidak tersedia"
@@ -113,50 +102,37 @@ if uploaded_file is not None:
                 awal = filtered_df['Tanggal Jatuh Tempo'].min().strftime('%d-%m-%Y')
                 akhir = filtered_df['Tanggal Jatuh Tempo'].max().strftime('%d-%m-%Y')
                 last_payment = filtered_df['Tanggal Pembayaran'].max().strftime('%d-%m-%Y') 
-            
             st.subheader(':grey[RINGKASAN TAGIHAN]',divider=True)
             st.markdown(
                 f"""
-    :red[Jumlah Tagihan:] {tagihan}  
-    Terbayar: {terbayar }
-    Belum terbayar: {kekurangan}
-    Tgl awal Tagihan : {awal}
-    Tgl akhir Jatuh tempo : {akhir}
-    Transaksi pembayaran terakhir: {last_payment} 
-    """
-                    )
+                    :red[Jumlah Tagihan:] {tagihan}  
+                    Terbayar: {terbayar }
+                    Belum terbayar: {kekurangan}
+                    Tgl awal Tagihan : {awal}
+                    Tgl akhir Jatuh tempo : {akhir}
+                    Transaksi pembayaran terakhir: {last_payment} 
+                    """
+                                    )
 
-
-            
-            
             filtered_df['Tagihan']= filtered_df['Tagihan'].str.replace(r'(SPP BULAN|JEMPUTAN)','',regex=True)
-
             filtered_df["Kategori"] = filtered_df["Kategori"].map(reverse_kategori).str.capitalize()
-
-            
             tagihan = filtered_df['Kategori'].drop_duplicates().to_list()
-            
             pilihTagihan = st.radio(label='Kategori',options=tagihan,horizontal=True,)
-            urutan = filtered_df[filtered_df['Kategori'] == pilihTagihan].sort_values(by='Urutan')
-            
+            urutan = filtered_df[filtered_df['Kategori'] == pilihTagihan].sort_values(by='Urutan')            
             if pilihTagihan == 'Spp' or pilihTagihan == 'Jemputan':
-
                 df = urutan.groupby(['Tagihan', 'Urutan']).agg(
                     Terbayarkan=('Terbayarkan', 'sum'),
                     Kekurangan=('Kekurangan', 'sum')
-                ).reset_index().sort_values(by='Urutan')  # Reset index agar 'Urutan' jadi kolom biasa
-                
-                
+                ).reset_index().sort_values(by='Urutan') 
             else:
                 df = urutan.groupby('Tagihan').agg(
                     Terbayarkan=('Terbayarkan', 'sum'),
                     Kekurangan=('Kekurangan', 'sum')
                 ).reset_index()  # Reset index agar 'Urutan' jadi kolom biasa
                 
-             
+            # bikin grafik 
             df_melted = df.melt(id_vars="Tagihan", value_vars=["Terbayarkan", "Kekurangan"],
                                 var_name="Category", value_name="Value")
-            # Create the line chart
             chart = alt.Chart(df_melted).mark_bar(opacity=0.7).encode(
                 x=alt.X("Tagihan:O", title="Periode",sort=list(df["Tagihan"]),axis=alt.Axis(labelAngle=0)),
                 y=alt.Y("Value:Q", title="Nominal" ),
@@ -169,19 +145,14 @@ if uploaded_file is not None:
                 title="Pembayaran", 
                 width=800,  # Lebar chart
                 height=500)  # Tinggi chart).interactive()
-
             st.altair_chart(chart)
 
-           
-
-            
         elif jabarkan == 'Detail Kategori Tagihan':
             # df["Kategori"] = df["Kategori"].map(reverse_kategori)
-            st.subheader(':green[KATEGORI TAGIHAN]',divider=True)
-            
+            st.subheader(':green[KATEGORI TAGIHAN]',divider=True)            
+           
             #Agregat Tagihan
             df["Kategori"] = df["Kategori"].map(reverse_kategori)
-            
             hasilFilter = df[df['unit'].isin(pilihUnit)][['Kategori','Terbayarkan','Kekurangan']]
             agg_data_namaTagihan = hasilFilter.groupby('Kategori').agg(
                     Terbayarkan=('Terbayarkan', 'sum'),
@@ -191,8 +162,7 @@ if uploaded_file is not None:
             st.dataframe(agg_data_namaTagihan)
             kategoriTagihan = st.sidebar.selectbox(label='Kategori tagihan',options=df['Kategori'].unique())
             
-            if kategoriTagihan:
-               
+            if kategoriTagihan:        
                 if kategoriTagihan == 'SPP' or  kategoriTagihan == 'JEMPUTAN':
                     df = df.sort_values(by='Urutan')
                     filterKategori = df[(df['unit'].isin(pilihUnit)) & (df['Kategori'] == kategoriTagihan)][['Tagihan', 'Terbayarkan', 'Kekurangan', 'Urutan']]
@@ -212,16 +182,14 @@ if uploaded_file is not None:
                     filterKategori = df[(df['unit'].isin(pilihUnit)) & (df['Kategori'] == kategoriTagihan)][['Tagihan', 'Terbayarkan', 'Kekurangan']]
                     agg_kategoriTagihan = filterKategori.groupby(['Tagihan'], as_index=False).agg(
                         Terbayarkan=('Terbayarkan', 'sum'),
-                        Kekurangan=('Kekurangan', 'sum')
-                    
+                        Kekurangan=('Kekurangan', 'sum')                
                     )
 
                 st.subheader(f':orange[RINCIAN TAGIHAN {kategoriTagihan}]',anchor='Kategori',divider='red')
                 if agg_kategoriTagihan.empty:
                     pass
                 else:
-                    st.dataframe(agg_kategoriTagihan,hide_index=True)
-                
+                    st.dataframe(agg_kategoriTagihan,hide_index=True)               
                 jabarRincian =  st.sidebar.checkbox("Jabarkan rincian tagihan")
                 if jabarRincian:
                     rincianKategori = df[(df['unit'].isin(pilihUnit)) & (df['Kategori'] == kategoriTagihan)]['Tagihan'].drop_duplicates().to_list() 
@@ -229,13 +197,10 @@ if uploaded_file is not None:
                     if pilihRincian:
                         status = ['Lunas','Belum']
                         hasilStatus = st.sidebar.radio('status pembayaran',options=status,horizontal=True)
-
                         hasilRincian = df[(df['Tagihan'] == pilihRincian) & ((df['Lunas'] == hasilStatus) | (df['Belum'] == hasilStatus))]       [['Nama','NIS','Terbayarkan','Kekurangan']]
                         hasilRincian.reset_index(drop=True,inplace=True)
                         hasilRincian.index +=1
-                        hasilRincian.index.name = 'No'
-                        
-                        
+                        hasilRincian.index.name = 'No'                      
                         st.subheader(f':red[STATUS TAGIHAN {pilihRincian}]',anchor='rincian',divider=True)
                         st.text(f'status pembayaran {hasilStatus}')
                         st.dataframe(hasilRincian)
@@ -257,32 +222,23 @@ if uploaded_file is not None:
                     df['kelas'] = df['kelas'].fillna(' ')
                     kelas = df[df['NIS'] == NIS]['kelas'].drop_duplicates().values[0]
                     tunggakan = df[df['NIS'] == NIS]['Kekurangan'].sum()
-                    st.text(f'''
-                            
-Nama: {nama}
-Kelas:{kelas}
-jumlah tunggakan: {tunggakan}      
-
-'''
-
-
+                    st.text(f'''                     
+                        Nama: {nama}
+                        Kelas:{kelas}
+                        jumlah tunggakan: {tunggakan}      
+                        '''
                     )
-                    df = df[(df['Belum'] == 'Belum') & (df['unit'].isin(pilihUnit)) & (df['NIS'] == NIS)    ]
-                    
+                    df = df[(df['Belum'] == 'Belum') & (df['unit'].isin(pilihUnit)) & (df['NIS'] == NIS)]                  
                     df.reset_index(drop=True,inplace=True)
                     df.index +=1
                     df.index.name = 'No'
                     st.dataframe(df.iloc[:,[1,8,11,12]])            
 
-
-
         else:
             st.subheader(':blue[REKAP]',divider=True)
-            geserNama = st.toggle('cari Nama/NIS siswa')
-            
+            geserNama = st.toggle('cari Nama/NIS siswa')            
             if geserNama:
-                cariNamaNis = st.text_input(label='Nama / NIS', placeholder='input Nama/NIS',key='carinamanis')
-                    
+                cariNamaNis = st.text_input(label='Nama / NIS', placeholder='input Nama/NIS',key='carinamanis')                    
                 if not cariNamaNis:
                     pass
                 else:
@@ -291,25 +247,18 @@ jumlah tunggakan: {tunggakan}
                     hasil = df.drop_duplicates(subset=['Nama', 'NIS'])
                     st.dataframe(hasil[['Nama','NIS']],hide_index=True)
 
-                
-                
-              
-                   
             NIS = st.text_input(label='Rekap Pembayaran per siswa', placeholder='input Nomor Induk Siswa (NIS)',key='nisBayar')
             if not NIS:
                 pass
             else:
                 namaSiswa = df[df['NIS'] == NIS]['Nama'].drop_duplicates().values[0]
                 st.write(f'Nama siswa: {namaSiswa}')
-                df = df[df['NIS'] == NIS].sort_values(by=['Kategori','Urutan'])
-                
+                df = df[df['NIS'] == NIS].sort_values(by=['Kategori','Urutan'])                
                 df.reset_index(drop=True,inplace=True)
                 df.index +=1
                 df.index.name = 'No'
-                df['Tanggal Pembayaran']= df['Tanggal Pembayaran'].dt.strftime('%d-%m-%Y')
-            
+                df['Tanggal Pembayaran']= df['Tanggal Pembayaran'].dt.strftime('%d-%m-%Y')            
                 st.dataframe(df[['Tagihan','Total','Terbayarkan','Kekurangan','Tanggal Pembayaran']])   
                 
-    
     except Exception as e:
         st.error(f"Error reading the file: {e}")
